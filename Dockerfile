@@ -5,7 +5,6 @@ WORKDIR /app
 
 # Copiar arquivos de dependência primeiro (cache layer)
 COPY package*.json ./
-COPY prisma.config.ts ./
 COPY prisma/ ./prisma/
 
 # Instalar todas as dependências (incluindo dev para build)
@@ -27,7 +26,6 @@ WORKDIR /app
 
 # Copiar apenas o necessário do estágio de build
 COPY package*.json ./
-COPY prisma.config.ts ./
 COPY prisma/ ./prisma/
 
 # Instalar apenas dependências de produção
@@ -45,4 +43,4 @@ COPY --from=builder /app/dist ./dist
 EXPOSE 3000
 
 # Aplicar schema no banco e iniciar a aplicação (removido --skip-generate)
-CMD ["sh", "-c", "npx prisma db push && node dist/src/main.js"]
+CMD ["sh", "-c", "npx prisma db push && node dist/main.js"]

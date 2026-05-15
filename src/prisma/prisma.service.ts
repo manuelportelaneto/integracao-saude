@@ -7,18 +7,17 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(PrismaService.name);
 
   constructor() {
-    // No Prisma 7, a configuração é resolvida automaticamente via prisma.config.ts.
-    // O construtor vazio é o padrão recomendado quando o arquivo de config existe.
+    // Usando composição para manter compatibilidade com o IntegracaoService
     this.client = new PrismaClient();
   }
 
   async onModuleInit() {
     try {
-      this.logger.log('Iniciando conexão com o banco (Prisma 7)...');
+      this.logger.log('Conectando ao banco de dados (Prisma 6 - Estável)...');
       await this.client.$connect();
-      this.logger.log('Conectado ao PostgreSQL com sucesso.');
+      this.logger.log('Conexão estabelecida com sucesso.');
     } catch (error) {
-      this.logger.error('Falha na conexão do Prisma:', error);
+      this.logger.error('Erro ao conectar ao banco:', error);
       throw error;
     }
   }
