@@ -1,5 +1,24 @@
+# Dependencies
 node_modules
-# Keep environment variables out of version control
-.env
+/dist
 
+# Environment variables
+.env
+.env.local
+
+# Prisma
 /generated/prisma
+*.db
+*.db-journal
+
+# IDEs
+.vscode
+.idea
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# NestJS
+.nest
+thumbs.db
