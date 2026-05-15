@@ -1,0 +1,51 @@
+// Prisma Schema - API de Integração de Saúde
+// Modelos: Pedido, ExamePedido, Documento, Exame
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Pedido {
+  codigoPedido   Int            @id
+  nomePaciente   String
+  dataNascimento String
+  sexo           String
+  codUnidade     Int
+  integrado      Boolean        @default(false)
+
+  exames         ExamePedido[]
+  documentos     Documento[]
+}
+
+model ExamePedido {
+  codigoItemPedido Int     @id
+  accessionNumber  String  @unique
+  modalidade       String
+  nomeProcedimento String
+  pedidoId         Int
+
+  pedido           Pedido  @relation(fields: [pedidoId], references: [codigoPedido])
+}
+
+model Documento {
+  codigoDocumento Int
+  codigoPedido    Int
+  nomeDocumento   String
+  documento       String
+  integrado       Boolean @default(false)
+
+  pedido          Pedido  @relation(fields: [codigoPedido], references: [codigoPedido])
+
+  @@id([codigoDocumento, codigoPedido])
+}
+
+model Exame {
+  accessionNumber String @id
+  nomePaciente    String
+  modalidade      String
+  status          String
+}
