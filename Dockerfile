@@ -24,12 +24,12 @@ FROM node:20-alpine AS production
 
 WORKDIR /app
 
-# Copiar apenas o necessário do estágio de build
+# Copiar arquivos de dependência
 COPY package*.json ./
 COPY prisma/ ./prisma/
 
-# Instalar apenas dependências de produção
-RUN npm ci --omit=dev
+# Instalar dependencias (incluindo as de teste para avaliacao)
+RUN npm ci
 
 # Copiar Prisma Client gerado e binários do estágio de build
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
@@ -37,10 +37,13 @@ COPY --from=builder /app/node_modules/@prisma/client ./node_modules/@prisma/clie
 COPY --from=builder /app/node_modules/@prisma/engines ./node_modules/@prisma/engines
 COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
 
-# Copiar build compilado do estágio anterior
+# Copiar build compilado, codigo fonte, pasta de testes e configuracoes
 COPY --from=builder /app/dist ./dist
+COPY src/ ./src/
+COPY test/ ./test/
+COPY tsconfig.json ./
 
 EXPOSE 3000
 
-# Aplicar schema no banco e iniciar a aplicação (removido --skip-generate)
+# Aplicar schema no banco e iniciar a aplicação
 CMD ["sh", "-c", "npx prisma db push && node dist/main.js"]

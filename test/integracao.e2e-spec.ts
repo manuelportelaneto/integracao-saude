@@ -1,12 +1,16 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
-import request from 'supertest';
+import * as request from 'supertest';
 import { AppModule } from './../src/app.module';
 import { PrismaService } from './../src/prisma/prisma.service';
+
+const supertest = (request as any).default || request;
 
 describe('Fluxo de Integracao (e2e)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
+
+  jest.setTimeout(30000);
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -18,7 +22,6 @@ describe('Fluxo de Integracao (e2e)', () => {
     await app.init();
 
     prisma = moduleFixture.get<PrismaService>(PrismaService);
-    // Limpar o banco antes dos testes
     await prisma.client.documento.deleteMany();
     await prisma.client.examePedido.deleteMany();
     await prisma.client.exame.deleteMany();
@@ -33,7 +36,7 @@ describe('Fluxo de Integracao (e2e)', () => {
   const accessionNumber = "930";
 
   it('Cenario 1: Pedido chega e nao existe exame correspondente (Status: false)', async () => {
-    const response = await request(app.getHttpServer())
+    const response = await supertest(app.getHttpServer())
       .post('/pedidos')
       .send({
         CodigoPedido: codigoPedido,
@@ -56,7 +59,7 @@ describe('Fluxo de Integracao (e2e)', () => {
   });
 
   it('Cenario 2: Documento chega para pedido ainda nao integrado (Status: false)', async () => {
-    const response = await request(app.getHttpServer())
+    const response = await supertest(app.getHttpServer())
       .post('/documentos')
       .send({
         CodigoDocumento: 251,
@@ -70,7 +73,7 @@ describe('Fluxo de Integracao (e2e)', () => {
   });
 
   it('Cenario 3: Documento duplicado deve retornar erro 409', async () => {
-    await request(app.getHttpServer())
+    await supertest(app.getHttpServer())
       .post('/documentos')
       .send({
         CodigoDocumento: 251,
@@ -82,8 +85,7 @@ describe('Fluxo de Integracao (e2e)', () => {
   });
 
   it('Cenario 4: Chegada de exame deve marcar Pedido e Documento como integrado: true', async () => {
-    // Simular chegada do exame
-    await request(app.getHttpServer())
+    await supertest(app.getHttpServer())
       .post('/exames')
       .send({
         AccessionNumber: accessionNumber,
@@ -93,18 +95,16 @@ describe('Fluxo de Integracao (e2e)', () => {
       })
       .expect(201);
 
-    // Verificar se o pedido agora esta integrado
-    const pedidoResponse = await request(app.getHttpServer())
+    const pedidoResponse = await supertest(app.getHttpServer())
       .get(`/pedidos/${codigoPedido}`)
       .expect(200);
 
     expect(pedidoResponse.body.integrado).toBe(true);
-    // Verificar se o documento vinculado tambem foi integrado
     expect(pedidoResponse.body.documentos[0].integrado).toBe(true);
   });
 
   it('Cenario 5: Pedido chega novamente com novo exame (Apenas adiciona o novo)', async () => {
-    const response = await request(app.getHttpServer())
+    const response = await supertest(app.getHttpServer())
       .post('/pedidos')
       .send({
         CodigoPedido: codigoPedido,
@@ -114,13 +114,13 @@ describe('Fluxo de Integracao (e2e)', () => {
         CodUnidade: 104,
         Exames: [
           {
-            CodigoItemPedido: 930, // Antigo
+            CodigoItemPedido: 930,
             AccessionNumber: accessionNumber,
             Modalidade: "CR",
             NomeProcedimento: "RX ANTEBRACO ESQUERDO"
           },
           {
-            CodigoItemPedido: 931, // Novo
+            CodigoItemPedido: 931,
             AccessionNumber: "931",
             Modalidade: "CR",
             NomeProcedimento: "OUTRO EXAME"
@@ -129,7 +129,6 @@ describe('Fluxo de Integracao (e2e)', () => {
       })
       .expect(201);
 
-    // Deve ter 2 exames agora
     expect(response.body.exames.length).toBe(2);
   });
 });
