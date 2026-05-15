@@ -1,8 +1,9 @@
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, Logger } from '@nestjs/common';
 import { AppModule } from './app.module.js';
 
 async function bootstrap() {
+  const logger = new Logger('Bootstrap');
   const app = await NestFactory.create(AppModule);
 
   app.useGlobalPipes(
@@ -15,6 +16,6 @@ async function bootstrap() {
 
   const port = process.env.PORT ?? 3000;
   await app.listen(port);
-  console.log(`🚀 API de Integração de Saúde rodando na porta ${port}`);
+  logger.log(`🚀 API de Integração de Saúde rodando na porta ${port}`);
 }
 bootstrap();

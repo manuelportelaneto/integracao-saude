@@ -18,7 +18,9 @@ describe('Fluxo de Integracao (e2e)', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
-    app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+    app.useGlobalPipes(
+      new ValidationPipe({ whitelist: true, transform: true }),
+    );
     await app.init();
 
     prisma = moduleFixture.get<PrismaService>(PrismaService);
@@ -33,25 +35,25 @@ describe('Fluxo de Integracao (e2e)', () => {
   });
 
   const codigoPedido = 616;
-  const accessionNumber = "930";
+  const accessionNumber = '930';
 
   it('Cenario 1: Pedido chega e nao existe exame correspondente (Status: false)', async () => {
     const response = await supertest(app.getHttpServer())
       .post('/pedidos')
       .send({
         CodigoPedido: codigoPedido,
-        NomePaciente: "ALEFHER MONTONI DE ALMEIDA",
-        DataNascimento: "19970601",
-        Sexo: "M",
+        NomePaciente: 'ALEFHER MONTONI DE ALMEIDA',
+        DataNascimento: '19970601',
+        Sexo: 'M',
         CodUnidade: 104,
         Exames: [
           {
             CodigoItemPedido: 930,
             AccessionNumber: accessionNumber,
-            Modalidade: "CR",
-            NomeProcedimento: "RX ANTEBRACO ESQUERDO"
-          }
-        ]
+            Modalidade: 'CR',
+            NomeProcedimento: 'RX ANTEBRACO ESQUERDO',
+          },
+        ],
       })
       .expect(201);
 
@@ -64,8 +66,8 @@ describe('Fluxo de Integracao (e2e)', () => {
       .send({
         CodigoDocumento: 251,
         CodigoPedido: codigoPedido,
-        NomeDocumento: "PEDIDO",
-        Documento: "base64_data"
+        NomeDocumento: 'PEDIDO',
+        Documento: 'base64_data',
       })
       .expect(201);
 
@@ -78,8 +80,8 @@ describe('Fluxo de Integracao (e2e)', () => {
       .send({
         CodigoDocumento: 251,
         CodigoPedido: codigoPedido,
-        NomeDocumento: "PEDIDO",
-        Documento: "base64_data"
+        NomeDocumento: 'PEDIDO',
+        Documento: 'base64_data',
       })
       .expect(409);
   });
@@ -89,9 +91,9 @@ describe('Fluxo de Integracao (e2e)', () => {
       .post('/exames')
       .send({
         AccessionNumber: accessionNumber,
-        NomePaciente: "ALEFHER MONTONI DE ALMEIDA",
-        Modalidade: "CR",
-        Status: "FINALIZADO"
+        NomePaciente: 'ALEFHER MONTONI DE ALMEIDA',
+        Modalidade: 'CR',
+        Status: 'FINALIZADO',
       })
       .expect(201);
 
@@ -108,24 +110,24 @@ describe('Fluxo de Integracao (e2e)', () => {
       .post('/pedidos')
       .send({
         CodigoPedido: codigoPedido,
-        NomePaciente: "ALEFHER MONTONI DE ALMEIDA",
-        DataNascimento: "19970601",
-        Sexo: "M",
+        NomePaciente: 'ALEFHER MONTONI DE ALMEIDA',
+        DataNascimento: '19970601',
+        Sexo: 'M',
         CodUnidade: 104,
         Exames: [
           {
             CodigoItemPedido: 930,
             AccessionNumber: accessionNumber,
-            Modalidade: "CR",
-            NomeProcedimento: "RX ANTEBRACO ESQUERDO"
+            Modalidade: 'CR',
+            NomeProcedimento: 'RX ANTEBRACO ESQUERDO',
           },
           {
             CodigoItemPedido: 931,
-            AccessionNumber: "931",
-            Modalidade: "CR",
-            NomeProcedimento: "OUTRO EXAME"
-          }
-        ]
+            AccessionNumber: '931',
+            Modalidade: 'CR',
+            NomeProcedimento: 'OUTRO EXAME',
+          },
+        ],
       })
       .expect(201);
 

@@ -1,4 +1,10 @@
-import { IsInt, IsString, IsArray, ValidateNested, IsOptional } from 'class-validator';
+import {
+  IsInt,
+  IsString,
+  IsArray,
+  ValidateNested,
+  IsOptional,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class ExamePedidoDto {
