@@ -17,7 +17,15 @@ A API gerencia o ciclo de vida de um pedido medico baseado em eventos de integra
 2.  **Documentos**: Anexados a um pedido via chave composta (CodigoDocumento + CodigoPedido). Herdam o status de integracao do pedido no momento da criacao.
 3.  **Exames**: Quando um exame chega (POST /exames), o sistema localiza pedidos que contenham o mesmo `AccessionNumber` e automaticamente marca o pedido e todos os seus documentos como `integrado: true`.
 
-## Como Executar
+## 🛠 Decisões Técnicas e Estabilização
+
+Para garantir a máxima estabilidade do desafio, foram aplicadas as seguintes melhorias:
+
+1.  **Conectividade Docker:** A string de conexão no `.env` utiliza o hostname `postgres` para comunicação interna entre os containers, evitando travamentos de timeout que ocorrem ao tentar usar `localhost` dentro de um ambiente isolado.
+2.  **Gerenciamento de Promises:** Todas as operações de escrita no banco de dados utilizam `await` explícito antes do retorno no Controller, garantindo que o ciclo de vida da requisição HTTP só termine após a confirmação do banco de dados.
+3.  **Logs Estruturados:** Implementação do `Logger` nativo do NestJS para facilitar o monitoramento do fluxo de integração em tempo real via `docker compose logs`.
+
+## 🚀 Como Executar
 
 ### Pre-requisitos
 

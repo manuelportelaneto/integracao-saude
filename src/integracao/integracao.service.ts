@@ -2,6 +2,7 @@ import {
   Injectable,
   ConflictException,
   NotFoundException,
+  Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CreatePedidoDto } from './dto/create-pedido.dto.js';
@@ -10,26 +11,20 @@ import { CreateExameDto } from './dto/create-exame.dto.js';
 
 @Injectable()
 export class IntegracaoService {
+  private readonly logger = new Logger(IntegracaoService.name);
+
   constructor(private readonly prisma: PrismaService) {}
 
   // ─── PEDIDOS ────────────────────────────────────────────────────────────────
 
-  /**
-   * POST /pedidos
-   *
-   * Regras:
-   * 1. Verifica se já existe um Exame com o mesmo AccessionNumber de cada item.
-   *    Se sim, salva o pedido como integrado: true. Se não, integrado: false.
-   * 2. Se o CodigoPedido já existir, apenas adiciona exames novos (sem duplicar
-   *    itens e sem sobrescrever o pedido base).
-   */
   async createPedido(dto: CreatePedidoDto) {
+    this.logger.log(`Iniciando criação/atualização de pedido: ${dto.CodigoPedido}`);
+    
     const pedidoExistente = await this.prisma.client.pedido.findUnique({
       where: { codigoPedido: dto.CodigoPedido },
       include: { exames: true },
     });
 
-    // Verificar se algum AccessionNumber dos exames enviados já existe na tabela Exame
     const accessionNumbers = dto.Exames.map((e) => e.AccessionNumber);
     const examesExistentes = await this.prisma.client.exame.findMany({
       where: { accessionNumber: { in: accessionNumbers } },
@@ -38,7 +33,7 @@ export class IntegracaoService {
     const integrado = examesExistentes.length > 0;
 
     if (pedidoExistente) {
-      // Pedido já existe: apenas adicionar exames novos
+      this.logger.log(`Pedido ${dto.CodigoPedido} já existe. Atualizando exames...`);
       const accessionNumbersExistentes = new Set(
         pedidoExistente.exames.map((e) => e.accessionNumber),
       );
@@ -59,7 +54,6 @@ export class IntegracaoService {
         });
       }
 
-      // Atualizar flag integrado se necessário
       if (integrado && !pedidoExistente.integrado) {
         await this.prisma.client.pedido.update({
           where: { codigoPedido: dto.CodigoPedido },
@@ -67,14 +61,16 @@ export class IntegracaoService {
         });
       }
 
-      return this.prisma.client.pedido.findUnique({
+      const result = await this.prisma.client.pedido.findUnique({
         where: { codigoPedido: dto.CodigoPedido },
         include: { exames: true, documentos: true },
       });
+      this.logger.log(`Pedido ${dto.CodigoPedido} processado com sucesso.`);
+      return result;
     }
 
-    // Pedido novo: criar tudo de uma vez
-    return this.prisma.client.pedido.create({
+    this.logger.log(`Criando novo pedido ${dto.CodigoPedido}...`);
+    const novoPedido = await this.prisma.client.pedido.create({
       data: {
         codigoPedido: dto.CodigoPedido,
         nomePaciente: dto.NomePaciente,
@@ -93,12 +89,10 @@ export class IntegracaoService {
       },
       include: { exames: true, documentos: true },
     });
+    this.logger.log(`Novo pedido ${dto.CodigoPedido} criado.`);
+    return novoPedido;
   }
 
-  /**
-   * GET /pedidos/:codigoPedido
-   * Retorna o pedido com exames e documentos aninhados.
-   */
   async findPedido(codigoPedido: number) {
     const pedido = await this.prisma.client.pedido.findUnique({
       where: { codigoPedido },
@@ -116,17 +110,9 @@ export class IntegracaoService {
 
   // ─── DOCUMENTOS ─────────────────────────────────────────────────────────────
 
-  /**
-   * POST /documentos
-   *
-   * Regras:
-   * 1. Se a combinação codigoDocumento + codigoPedido já existir → 409 Conflict.
-   * 2. Se o Pedido não existir → 404 NotFound.
-   * 3. Se o Pedido relacionado estiver integrado: true → documento integrado: true.
-   *    Caso contrário → integrado: false.
-   */
   async createDocumento(dto: CreateDocumentoDto) {
-    // Verificar se o documento já existe (chave composta)
+    this.logger.log(`Salvando documento ${dto.CodigoDocumento} para pedido ${dto.CodigoPedido}`);
+    
     const documentoExistente = await this.prisma.client.documento.findUnique({
       where: {
         codigoDocumento_codigoPedido: {
@@ -142,7 +128,6 @@ export class IntegracaoService {
       );
     }
 
-    // Verificar se o pedido existe
     const pedido = await this.prisma.client.pedido.findUnique({
       where: { codigoPedido: dto.CodigoPedido },
     });
@@ -153,8 +138,7 @@ export class IntegracaoService {
       );
     }
 
-    // Herdar o status de integração do pedido
-    return this.prisma.client.documento.create({
+    const novoDoc = await this.prisma.client.documento.create({
       data: {
         codigoDocumento: dto.CodigoDocumento,
         codigoPedido: dto.CodigoPedido,
@@ -163,12 +147,10 @@ export class IntegracaoService {
         integrado: pedido.integrado,
       },
     });
+    this.logger.log(`Documento ${dto.CodigoDocumento} salvo com sucesso.`);
+    return novoDoc;
   }
 
-  /**
-   * GET /documentos/:codigoPedido
-   * Retorna todos os documentos de um pedido.
-   */
   async findDocumentos(codigoPedido: number) {
     const pedido = await this.prisma.client.pedido.findUnique({
       where: { codigoPedido },
@@ -187,17 +169,9 @@ export class IntegracaoService {
 
   // ─── EXAMES ─────────────────────────────────────────────────────────────────
 
-  /**
-   * POST /exames
-   *
-   * Regras:
-   * 1. Upsert baseado no AccessionNumber (cria ou atualiza).
-   * 2. Procura se existe algum Pedido que contenha esse AccessionNumber nos itens.
-   * 3. Se existir, atualiza o Pedido para integrado: true e todos os Documentos
-   *    pendentes desse pedido para integrado: true.
-   */
   async upsertExame(dto: CreateExameDto) {
-    // Upsert do exame
+    this.logger.log(`Recebendo exame: ${dto.AccessionNumber}`);
+    
     const exame = await this.prisma.client.exame.upsert({
       where: { accessionNumber: dto.AccessionNumber },
       update: {
@@ -213,20 +187,18 @@ export class IntegracaoService {
       },
     });
 
-    // Buscar pedidos que contêm este AccessionNumber
     const examePedido = await this.prisma.client.examePedido.findUnique({
       where: { accessionNumber: dto.AccessionNumber },
       include: { pedido: true },
     });
 
     if (examePedido) {
-      // Atualizar pedido para integrado: true
+      this.logger.log(`Vínculo encontrado! Integrando pedido ${examePedido.pedidoId}`);
       await this.prisma.client.pedido.update({
         where: { codigoPedido: examePedido.pedidoId },
         data: { integrado: true },
       });
 
-      // Atualizar todos os documentos pendentes deste pedido
       await this.prisma.client.documento.updateMany({
         where: {
           codigoPedido: examePedido.pedidoId,
@@ -236,13 +208,10 @@ export class IntegracaoService {
       });
     }
 
+    this.logger.log(`Exame ${dto.AccessionNumber} processado.`);
     return exame;
   }
 
-  /**
-   * GET /exames/:accessionNumber
-   * Retorna um exame pelo AccessionNumber.
-   */
   async findExame(accessionNumber: string) {
     const exame = await this.prisma.client.exame.findUnique({
       where: { accessionNumber },
